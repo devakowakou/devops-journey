@@ -55,3 +55,45 @@ sudo systemctl restart snapd    # force libération
 - Sur serveur production → jamais snap, utiliser apt ou binaires
 - Disque > 80% = alerte, > 90% = urgence
 - Toujours investiguer avant de supprimer
+
+
+
+## Runbook — Disque plein (incident résolu)
+
+### Symptôme
+monitoring.sh → Disque / à 84% (seuil 80%)
+
+### Investigation
+```bash
+sudo du -sh /*              # identifier le niveau 1
+sudo du -d1 -h /var         # creuser /var
+sudo du -d1 -h /snap        # voir les snaps
+docker system df            # voir l'état Docker
+docker inspect <id> | grep -A10 "Mounts"  # vérifier volumes actifs
+```
+
+### Causes identifiées
+1. JetBrains via snap = 18Go (5 IDEs)
+2. Docker volumes orphelins = 14Go (60 volumes inutilisés)
+
+### Solution
+```bash
+# Snap
+sudo snap remove <ide>
+snap saved && sudo snap forget <id>
+sudo systemctl restart snapd
+
+# Docker — TOUJOURS vérifier avant
+docker inspect <conteneur> | grep -A10 "Mounts"  # protéger le volume actif
+docker container prune -f
+docker volume ls -q | grep -v "<volume_actif>" | xargs -r docker volume rm
+docker image prune -a -f
+```
+
+### Résultat
+84% → 44% — 26Go libérés
+
+### Règles retenues
+- Snap sur serveur prod = JAMAIS
+- docker volume prune sans vérifier = risque perte données
+- Toujours inspecter avant de supprimer
