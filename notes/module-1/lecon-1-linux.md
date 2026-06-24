@@ -28,3 +28,30 @@ free -h                       # mémoire disponible
 
 ## À retenir absolument
 journalctl est la porte d'entrée pour tous les logs en prod
+
+## Incident résolu — Disque plein (84% → 60%)
+
+### Commandes d'investigation disque
+```bash
+sudo du -sh /*          # vue globale premier niveau
+sudo du -d1 -h /var     # creuser un dossier
+sudo du -d1 -h /snap    # voir les snaps installés
+snap saved              # voir les snapshots snap
+```
+
+### Cause identifiée
+- 5 IDEs JetBrains via snap = 18Go
+- Snap garde snapshots après suppression
+
+### Solution appliquée
+```bash
+sudo snap remove <nom>          # supprime le snap
+snap saved                      # liste les snapshots
+sudo snap forget <id>           # supprime le snapshot
+sudo systemctl restart snapd    # force libération
+```
+
+### Règle d'or
+- Sur serveur production → jamais snap, utiliser apt ou binaires
+- Disque > 80% = alerte, > 90% = urgence
+- Toujours investiguer avant de supprimer
